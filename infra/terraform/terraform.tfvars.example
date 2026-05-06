@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in values
+# DO NOT commit terraform.tfvars — it contains secrets
+
+db_admin_password   = "CHANGE_ME_strong_password_here"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+location            = "East US"
+vm_size             = "Standard_B1s"
