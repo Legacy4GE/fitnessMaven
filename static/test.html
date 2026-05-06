@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fitnessMaven - Test</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 400px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #e94560;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 2rem;
+        }
+
+        /* Login Form */
+        #login-section input {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #16213e;
+            color: #eee;
+            font-size: 1rem;
+        }
+        #login-section input::placeholder { color: #666; }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-login { background: #e94560; color: #fff; }
+        .btn-login:hover { background: #c73e54; }
+        .btn-start { background: #0f3460; color: #fff; margin-bottom: 12px; }
+        .btn-start:hover { background: #1a4a7a; }
+        .btn-stop { background: #e94560; color: #fff; }
+        .btn-stop:hover { background: #c73e54; }
+        .btn-logout { background: #333; color: #aaa; margin-top: 20px; }
+        .btn-logout:hover { background: #444; }
+
+        /* Timer */
+        #timer-section { display: none; }
+        .timer-display {
+            font-size: 4rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            margin: 30px 0;
+            padding: 20px;
+            border-radius: 12px;
+            background: #16213e;
+        }
+        .timer-green { color: #4ecca3; }
+        .timer-yellow { color: #f0c040; }
+        .timer-red { color: #e94560; }
+
+        /* Alert Banner */
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            display: none;
+        }
+        .alert-yellow { background: #f0c040; color: #1a1a2e; }
+        .alert-red { background: #e94560; color: #fff; }
+
+        /* Status */
+        .status {
+            color: #888;
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+        .user-info {
+            color: #4ecca3;
+            margin-bottom: 20px;
+        }
+        .error { color: #e94560; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>fitnessMaven</h1>
+        <p class="subtitle">Gym Courtesy Timer</p>
+
+        <!-- Login Section -->
+        <div id="login-section">
+            <input type="text" id="email" placeholder="Email" value="test">
+            <input type="password" id="password" placeholder="Password" value="test">
+            <button class="btn btn-login" onclick="login()">Log In</button>
+            <p id="login-error" class="error"></p>
+        </div>
+
+        <!-- Timer Section -->
+        <div id="timer-section">
+            <p class="user-info">Logged in as: <span id="user-name"></span></p>
+
+            <div id="alert-yellow" class="alert alert-yellow">
+                Warning: You've been on this machine over 10 minutes!
+            </div>
+            <div id="alert-red" class="alert alert-red">
+                Please wrap up — others are waiting!
+            </div>
+
+            <div id="timer-display" class="timer-display timer-green">00:00</div>
+
+            <button id="btn-start" class="btn btn-start" onclick="startTimer()">Start Timer</button>
+            <button id="btn-stop" class="btn btn-stop" onclick="stopTimer()" style="display:none;">Stop Timer</button>
+
+            <p class="status" id="status-text">Press Start to begin tracking</p>
+
+            <button class="btn btn-logout" onclick="logout()">Log Out</button>
+        </div>
+    </div>
+
+    <script>
+        let token = null;
+        let timerInterval = null;
+        let startTime = null;
+
+        const YELLOW_SECONDS = 10 * 60;
+        const RED_SECONDS = 15 * 60;
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.textContent = '';
+
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', password);
+
+            try {
+                const resp = await fetch('/auth/login', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    errorEl.textContent = err.detail || 'Login failed';
+                    return;
+                }
+
+                const data = await resp.json();
+                token = data.access_token;
+
+                // Fetch user info
+                const meResp = await fetch('/auth/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const user = await meResp.json();
+                document.getElementById('user-name').textContent = user.full_name || user.email;
+
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('timer-section').style.display = 'block';
+            } catch (e) {
+                errorEl.textContent = 'Connection error';
+            }
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-block';
+            document.getElementById('status-text').textContent = 'Timer running...';
+            document.getElementById('alert-yellow').style.display = 'none';
+            document.getElementById('alert-red').style.display = 'none';
+
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            document.getElementById('btn-start').style.display = 'inline-block';
+            document.getElementById('btn-stop').style.display = 'none';
+
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('status-text').textContent =
+                'Session ended after ' + formatTime(elapsed);
+            startTime = null;
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const display = document.getElementById('timer-display');
+            display.textContent = formatTime(elapsed);
+
+            // Update color and alerts
+            if (elapsed >= RED_SECONDS) {
+                display.className = 'timer-display timer-red';
+                document.getElementById('alert-red').style.display = 'block';
+                document.getElementById('alert-yellow').style.display = 'none';
+            } else if (elapsed >= YELLOW_SECONDS) {
+                display.className = 'timer-display timer-yellow';
+                document.getElementById('alert-yellow').style.display = 'block';
+            } else {
+                display.className = 'timer-display timer-green';
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            return m + ':' + s;
+        }
+
+        function logout() {
+            if (timerInterval) stopTimer();
+            token = null;
+            document.getElementById('timer-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('timer-display').textContent = '00:00';
+            document.getElementById('timer-display').className = 'timer-display timer-green';
+            document.getElementById('alert-yellow').style.display = 'none';
+            document.getElementById('alert-red').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

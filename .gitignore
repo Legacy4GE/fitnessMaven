@@ -20,5 +20,8 @@ FitnessMaven/
 *.egg-info/
 .pytest_cache/
 
+# Local database
+*.db
+
 # Secrets
 .env
