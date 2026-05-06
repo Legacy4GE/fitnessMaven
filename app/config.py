@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql://fmadmin:changeme@localhost/fitnessmaven"
+    database_url: str = "sqlite:///./fitnessmaven.db"
     secret_key: str = "CHANGE-ME-IN-PRODUCTION"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
